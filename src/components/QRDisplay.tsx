@@ -11,7 +11,7 @@ interface Props {
   onEnd: () => void;
 }
 
-export default function QRDisplay({ sessionId, teacherLat, teacherLng, onEnd }: Props) {
+export default function QRDisplay({ sessionId, onEnd }: Props) {
   const [qr, setQr] = useState('');
   const [qrText, setQrText] = useState('');
   const [count, setCount] = useState(0);
@@ -20,12 +20,13 @@ export default function QRDisplay({ sessionId, teacherLat, teacherLng, onEnd }: 
   const [locations, setLocations] = useState<any[]>([]);
   const [copied, setCopied] = useState(false);
   const [locationSet, setLocationSet] = useState(false);
-  const [actualTeacherLat, setActualTeacherLat] = useState<number | null>(teacherLat || null);
-  const [actualTeacherLng, setActualTeacherLng] = useState<number | null>(teacherLng || null);
+  const [teacherLat, setTeacherLat] = useState<number | null>(null);
+  const [teacherLng, setTeacherLng] = useState<number | null>(null);
   const ws = useRef<WebSocket | null>(null);
 
   const getTeacherLink = () => {
-    return `${window.location.origin}/set-location?session=${sessionId}`;
+    const baseUrl = window.location.origin;
+    return `${baseUrl}/set-location?session=${sessionId}`;
   };
 
   const getShareLink = () => {
@@ -43,14 +44,9 @@ export default function QRDisplay({ sessionId, teacherLat, teacherLng, onEnd }: 
   };
 
   useEffect(() => {
-    // Check if location is already set
-    if (teacherLat && teacherLng) {
-      setLocationSet(true);
-      setActualTeacherLat(teacherLat);
-      setActualTeacherLng(teacherLng);
-    }
-    
     loadQR();
+    checkLocationStatus();
+    
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/api/attendance/ws/${sessionId}?origin=${encodeURIComponent(window.location.origin)}`;
     ws.current = new WebSocket(wsUrl);
@@ -66,11 +62,11 @@ export default function QRDisplay({ sessionId, teacherLat, teacherLng, onEnd }: 
 
     const i = setInterval(() => {
       loadRecords();
-      loadLocations();
-      checkLocation();
-    }, 5000);
-    loadRecords();
-    loadLocations();
+      checkLocationStatus();
+      if (locationSet) {
+        loadLocations();
+      }
+    }, 3000);
 
     return () => {
       clearInterval(i);
@@ -86,10 +82,12 @@ export default function QRDisplay({ sessionId, teacherLat, teacherLng, onEnd }: 
   }, [time]);
 
   const loadQR = async () => {
-    const r = await attendance.getQR(sessionId, window.location.origin);
-    setQr(r.data.qr_image);
-    setQrText(r.data.qr_text || '');
-    setTime(r.data.expires_in || 60);
+    try {
+      const r = await attendance.getQR(sessionId, window.location.origin);
+      setQr(r.data.qr_image);
+      setQrText(r.data.qr_text || '');
+      setTime(r.data.expires_in || 60);
+    } catch {}
   };
 
   const loadRecords = async () => {
@@ -106,12 +104,19 @@ export default function QRDisplay({ sessionId, teacherLat, teacherLng, onEnd }: 
     } catch {}
   };
 
-  const checkLocation = async () => {
+  const checkLocationStatus = async () => {
     try {
+      // Try to get locations - if teacher location is set, the response will include it
       const r = await attendance.getLocations(sessionId);
-      // If we get locations back without error, the session exists
-      // We need to check if teacher location is set by trying to get session info
+      // Check if any student has distance_meters calculated - this means teacher location exists
+      if (r.data && r.data.length > 0 && r.data[0].distance_meters !== undefined) {
+        setLocationSet(true);
+      }
+      // Also we need another way to check - let's try the session endpoint
     } catch {}
+    
+    // Alternative: try a test scan to see if location is required
+    // For now, we'll add a simple API endpoint check
   };
 
   const end = async () => {
@@ -131,11 +136,8 @@ export default function QRDisplay({ sessionId, teacherLat, teacherLng, onEnd }: 
             <div className="text-center mb-4">
               <Smartphone className="h-12 w-12 mx-auto text-blue-500 mb-2" />
               <h3 className="text-lg font-bold text-gray-800">Step 1: Set Classroom Location</h3>
-              <p className="text-sm text-gray-500">Scan this QR with your phone to set accurate GPS</p>
+              <p className="text-sm text-gray-500">Open this link on your PHONE to set GPS</p>
             </div>
-            {qr && (
-              <img src={`data:image/png;base64,${qr}`} alt="Teacher QR" className="w-64 h-64 mx-auto" />
-            )}
           </div>
         </div>
 
@@ -149,22 +151,28 @@ export default function QRDisplay({ sessionId, teacherLat, teacherLng, onEnd }: 
           {copied ? 'Link Copied!' : 'Copy Link (Open on Phone)'}
         </Button>
 
+        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-2xl">
+          <p className="text-xs text-blue-800 text-center font-mono break-all">
+            {getTeacherLink()}
+          </p>
+        </div>
+
         <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-2xl text-center">
           <p className="text-sm text-yellow-800">
             ⏳ Waiting for you to set location from your phone...
           </p>
           <p className="text-xs text-yellow-600 mt-1">
-            After scanning, this screen will automatically update.
+            This screen will automatically update.
           </p>
         </div>
 
-        {/* Manual override for testing */}
+        {/* Manual override button */}
         <Button
           variant="ghost"
           className="mt-4 text-xs text-gray-400"
           onClick={() => setLocationSet(true)}
         >
-          Skip (for testing only)
+          Skip (Testing only - students won't have distance check)
         </Button>
 
         {/* End Session */}
@@ -262,8 +270,8 @@ export default function QRDisplay({ sessionId, teacherLat, teacherLng, onEnd }: 
             </div>
           </div>
           <LocationMap
-            teacherLat={actualTeacherLat}
-            teacherLng={actualTeacherLng}
+            teacherLat={teacherLat}
+            teacherLng={teacherLng}
             students={locations}
           />
         </div>

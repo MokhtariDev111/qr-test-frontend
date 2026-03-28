@@ -61,25 +61,19 @@ const TeacherDashboard = () => {
   };
 
   const handleStart = async (id: number) => {
-    const loc = await getGpsLocation();
-    if (loc) {
-      setTeacherPos({ lat: loc.lat, lng: loc.lng });
-    } else {
-      setTeacherPos(null);
-      if (!confirm("⚠️ Location unavailable. Students can mark attendance from anywhere. Start anyway?")) return;
-    }
-
-    try {
-      const res = await attendance.createSession({
-        course_id: id,
-        latitude: loc?.lat ?? null,
-        longitude: loc?.lng ?? null,
-      });
-      setSession(res.data);
-    } catch (err: any) {
-      alert('Failed to start session: ' + (err.response?.data?.detail || err.message));
-    }
-  };
+  try {
+    // Create session WITHOUT location - teacher will set it via phone
+    const res = await attendance.createSession({
+      course_id: id,
+      latitude: null,
+      longitude: null,
+    });
+    setSession(res.data);
+    setTeacherPos(null); // No location yet
+  } catch (err: any) {
+    alert('Failed to start session: ' + (err.response?.data?.detail || err.message));
+  }
+};
 
   const handleEnd = async (sessionId: number) => {
     try {

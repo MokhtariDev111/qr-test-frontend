@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { attendance } from '../services/api';
 import { Button } from './ui/button';
-import { RefreshCw, Users, XCircle, Timer, MapPin, X } from 'lucide-react';
+import { RefreshCw, Users, XCircle, Timer, MapPin, X, Copy, Check } from 'lucide-react';
 import LocationMap from './LocationMap';
 
 interface Props {
@@ -13,11 +13,27 @@ interface Props {
 
 export default function QRDisplay({ sessionId, teacherLat, teacherLng, onEnd }: Props) {
   const [qr, setQr] = useState('');
+  const [qrText, setQrText] = useState('');
   const [count, setCount] = useState(0);
   const [time, setTime] = useState(60);
   const [showMap, setShowMap] = useState(false);
   const [locations, setLocations] = useState<any[]>([]);
+  const [copied, setCopied] = useState(false);
   const ws = useRef<WebSocket | null>(null);
+
+  const getShareLink = () => {
+    return `${window.location.origin}/student?token=${qrText}`;
+  };
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(getShareLink());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      alert('Link: ' + getShareLink());
+    }
+  };
 
   useEffect(() => {
     loadQR();
@@ -29,6 +45,7 @@ export default function QRDisplay({ sessionId, teacherLat, teacherLng, onEnd }: 
       const d = JSON.parse(e.data);
       if (d.type === 'refresh') {
         setQr(d.qr_image);
+        setQrText(d.qr_text || '');
         setTime(60);
       } else if (d.type === 'ended') onEnd();
     };
@@ -56,6 +73,7 @@ export default function QRDisplay({ sessionId, teacherLat, teacherLng, onEnd }: 
   const loadQR = async () => {
     const r = await attendance.getQR(sessionId, window.location.origin);
     setQr(r.data.qr_image);
+    setQrText(r.data.qr_text || '');
     setTime(r.data.expires_in || 60);
   };
 
@@ -89,8 +107,20 @@ export default function QRDisplay({ sessionId, teacherLat, teacherLng, onEnd }: 
         </div>
       )}
 
+      {/* Copy Link Button */}
+      {qrText && (
+        <Button
+          variant="outline"
+          className="mt-4 w-full h-12 rounded-2xl border-primary/30 text-primary hover:bg-primary/5 gap-2"
+          onClick={copyLink}
+        >
+          {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+          {copied ? 'Link Copied!' : 'Copy Share Link'}
+        </Button>
+      )}
+
       {/* Timer */}
-      <div className="mt-6 flex items-center gap-2 px-4 py-2 bg-muted/50 rounded-full border border-border/50">
+      <div className="mt-4 flex items-center gap-2 px-4 py-2 bg-muted/50 rounded-full border border-border/50">
         <Timer className={`h-4 w-4 ${time <= 5 ? 'text-destructive animate-pulse' : 'text-muted-foreground'}`} />
         <span className={`text-sm font-bold font-mono ${time <= 5 ? 'text-destructive' : 'text-foreground'}`}>
           REGENERATING IN {time}s

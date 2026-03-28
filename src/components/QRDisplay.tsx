@@ -45,18 +45,20 @@ export default function QRDisplay({ sessionId, onEnd }: Props) {
   };
 
   const generateTeacherQR = async () => {
-    try {
-      const link = getTeacherLink();
-      const qrDataUrl = await QRCode.toDataURL(link, {
-        width: 256,
-        margin: 2,
-        color: { dark: '#1e40af', light: '#ffffff' }
-      });
-      setTeacherQr(qrDataUrl);
-    } catch (err) {
-      console.error('QR generation failed', err);
-    }
-  };
+  try {
+    const link = `${window.location.origin}/set-location?session=${sessionId}`;
+    console.log('Teacher QR Link:', link); // Debug
+    const qrDataUrl = await QRCode.toDataURL(link, {
+      width: 300,
+      margin: 2,
+      errorCorrectionLevel: 'M',
+      color: { dark: '#1e40af', light: '#ffffff' }
+    });
+    setTeacherQr(qrDataUrl);
+  } catch (err) {
+    console.error('QR generation failed', err);
+  }
+};
 
   const loadQR = async () => {
     try {

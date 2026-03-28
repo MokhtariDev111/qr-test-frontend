@@ -33,7 +33,7 @@ const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<Login />} />
     <Route path="/register" element={<Register />} />
-    <<Route path="/set-location" element={<Protected role="teacher"><SetLocation /></Protected>} />
+    <Route path="/set-location" element={<Protected role="teacher"><SetLocation /></Protected>} />
     <Route path="/" element={<Protected role="teacher"><TeacherDashboard /></Protected>} />
     <Route path="/student" element={<Protected role="student"><StudentDashboard /></Protected>} />
     <Route path="*" element={<NotFound />} />

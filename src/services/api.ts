@@ -45,6 +45,7 @@ export const attendance = {
   clearAttendance: (id: number) => API.post(`/attendance/sessions/${id}/clear`),
   getRecords: (id: number) => API.get(`/attendance/sessions/${id}/records`),
   getLocations: (id: number) => API.get(`/attendance/sessions/${id}/locations`),
+  setLocation: (id: number, lat: number, lng: number) => API.post(`/attendance/sessions/${id}/set-location`, { latitude: lat, longitude: lng }),
   scan: (token: string, lat: number | null, lng: number | null, accuracy: number | null, deviceId: string) => 
     API.post('/attendance/scan', { 
       qr_token: token, 
@@ -57,5 +58,4 @@ export const attendance = {
   deleteSession: (id: number) => API.delete(`/attendance/sessions/${id}`),
   history: () => API.get('/attendance/my-history'),
 };
-
 export default API;

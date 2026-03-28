@@ -9,6 +9,7 @@ import StudentDashboard from "./pages/StudentDashboard";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import NotFound from "./pages/NotFound.tsx";
+import SetLocation from './pages/SetLocation';
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,7 @@ const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<Login />} />
     <Route path="/register" element={<Register />} />
+    <<Route path="/set-location" element={<Protected role="teacher"><SetLocation /></Protected>} />
     <Route path="/" element={<Protected role="teacher"><TeacherDashboard /></Protected>} />
     <Route path="/student" element={<Protected role="student"><StudentDashboard /></Protected>} />
     <Route path="*" element={<NotFound />} />

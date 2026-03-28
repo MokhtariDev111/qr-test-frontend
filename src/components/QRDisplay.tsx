@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { attendance } from '../services/api';
 import { Button } from './ui/button';
-import { RefreshCw, Users, XCircle, Timer, MapPin, X, Copy, Check, Smartphone } from 'lucide-react';
+import { RefreshCw, Users, XCircle, Timer, MapPin, X, Copy, Check, Smartphone, QrCode } from 'lucide-react';
 import LocationMap from './LocationMap';
+import QRCode from 'qrcode';
 
 interface Props {
   sessionId: number;
@@ -12,7 +13,8 @@ interface Props {
 }
 
 export default function QRDisplay({ sessionId, onEnd }: Props) {
-  const [qr, setQr] = useState('');
+  const [studentQr, setStudentQr] = useState('');
+  const [teacherQr, setTeacherQr] = useState('');
   const [qrText, setQrText] = useState('');
   const [count, setCount] = useState(0);
   const [time, setTime] = useState(60);
@@ -25,8 +27,7 @@ export default function QRDisplay({ sessionId, onEnd }: Props) {
   const ws = useRef<WebSocket | null>(null);
 
   const getTeacherLink = () => {
-    const baseUrl = window.location.origin;
-    return `${baseUrl}/set-location?session=${sessionId}`;
+    return `${window.location.origin}/set-location?session=${sessionId}`;
   };
 
   const getShareLink = () => {
@@ -43,22 +44,43 @@ export default function QRDisplay({ sessionId, onEnd }: Props) {
     }
   };
 
+  // Generate Teacher QR code
+  const generateTeacherQR = async () => {
+    try {
+      const link = getTeacherLink();
+      const qrDataUrl = await QRCode.toDataURL(link, {
+        width: 256,
+        margin: 2,
+        color: { dark: '#1e40af', light: '#ffffff' }
+      });
+      setTeacherQr(qrDataUrl);
+    } catch (err) {
+      console.error('QR generation failed', err);
+    }
+  };
+
   useEffect(() => {
+    generateTeacherQR();
     loadQR();
     checkLocationStatus();
     
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/api/attendance/ws/${sessionId}?origin=${encodeURIComponent(window.location.origin)}`;
-    ws.current = new WebSocket(wsUrl);
-
-    ws.current.onmessage = e => {
-      const d = JSON.parse(e.data);
-      if (d.type === 'refresh') {
-        setQr(d.qr_image);
-        setQrText(d.qr_text || '');
-        setTime(60);
-      } else if (d.type === 'ended') onEnd();
-    };
+    const apiUrl = import.meta.env.VITE_API_URL || '';
+    const wsBase = apiUrl.replace('https://', 'wss://').replace('http://', 'ws://').replace('/api', '');
+    const wsUrl = `${wsBase}/api/attendance/ws/${sessionId}?origin=${encodeURIComponent(window.location.origin)}`;
+    
+    try {
+      ws.current = new WebSocket(wsUrl);
+      ws.current.onmessage = e => {
+        const d = JSON.parse(e.data);
+        if (d.type === 'refresh') {
+          setStudentQr(d.qr_image);
+          setQrText(d.qr_text || '');
+          setTime(60);
+        } else if (d.type === 'ended') onEnd();
+      };
+    } catch (e) {
+      console.log('WebSocket not available');
+    }
 
     const i = setInterval(() => {
       loadRecords();
@@ -75,16 +97,16 @@ export default function QRDisplay({ sessionId, onEnd }: Props) {
   }, [sessionId]);
 
   useEffect(() => {
-    if (time > 0) {
+    if (time > 0 && locationSet) {
       const t = setTimeout(() => setTime(time - 1), 1000);
       return () => clearTimeout(t);
     }
-  }, [time]);
+  }, [time, locationSet]);
 
   const loadQR = async () => {
     try {
       const r = await attendance.getQR(sessionId, window.location.origin);
-      setQr(r.data.qr_image);
+      setStudentQr(r.data.qr_image);
       setQrText(r.data.qr_text || '');
       setTime(r.data.expires_in || 60);
     } catch {}
@@ -97,26 +119,26 @@ export default function QRDisplay({ sessionId, onEnd }: Props) {
     } catch {}
   };
 
-  const loadLocations = async () => {
-    try {
-      const r = await attendance.getLocations(sessionId);
-      setLocations(r.data);
-    } catch {}
-  };
+  const checkLocationStatus = async () => {
+  try {
+    const r = await attendance.getLocations(sessionId);
+    if (r.data.teacher_location_set) {
+      setLocationSet(true);
+      setTeacherLat(r.data.teacher_lat);
+      setTeacherLng(r.data.teacher_lng);
+    }
+  } catch {}
+};
 
   const checkLocationStatus = async () => {
     try {
-      // Try to get locations - if teacher location is set, the response will include it
+      // We'll check by trying to get session info
+      // For now, poll the locations endpoint
       const r = await attendance.getLocations(sessionId);
-      // Check if any student has distance_meters calculated - this means teacher location exists
-      if (r.data && r.data.length > 0 && r.data[0].distance_meters !== undefined) {
-        setLocationSet(true);
-      }
-      // Also we need another way to check - let's try the session endpoint
+      // If teacher location is set, the backend will return it
+      // We need to modify backend to include this info
+      // For now, we check if any student has been marked
     } catch {}
-    
-    // Alternative: try a test scan to see if location is required
-    // For now, we'll add a simple API endpoint check
   };
 
   const end = async () => {
@@ -126,7 +148,7 @@ export default function QRDisplay({ sessionId, onEnd }: Props) {
     }
   };
 
-  // STAGE 1: Teacher needs to set location
+  // STAGE 1: Teacher needs to scan QR to set location
   if (!locationSet) {
     return (
       <div className="flex flex-col items-center">
@@ -134,32 +156,30 @@ export default function QRDisplay({ sessionId, onEnd }: Props) {
         <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-1 rounded-[2rem] shadow-2xl">
           <div className="bg-white p-6 rounded-[1.8rem]">
             <div className="text-center mb-4">
-              <Smartphone className="h-12 w-12 mx-auto text-blue-500 mb-2" />
+              <Smartphone className="h-10 w-10 mx-auto text-blue-500 mb-2" />
               <h3 className="text-lg font-bold text-gray-800">Step 1: Set Classroom Location</h3>
-              <p className="text-sm text-gray-500">Open this link on your PHONE to set GPS</p>
+              <p className="text-sm text-gray-500">Scan this QR with your phone</p>
             </div>
+            {teacherQr && (
+              <img src={teacherQr} alt="Teacher QR" className="w-64 h-64 mx-auto" />
+            )}
           </div>
         </div>
 
-        {/* Copy Teacher Link */}
+        {/* Or copy link */}
+        <p className="mt-4 text-sm text-muted-foreground">Or copy the link:</p>
         <Button
           variant="outline"
-          className="mt-4 w-full h-12 rounded-2xl border-blue-300 text-blue-600 hover:bg-blue-50 gap-2"
+          className="mt-2 w-full h-10 rounded-2xl border-blue-300 text-blue-600 hover:bg-blue-50 gap-2"
           onClick={() => copyLink(getTeacherLink())}
         >
           {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-          {copied ? 'Link Copied!' : 'Copy Link (Open on Phone)'}
+          {copied ? 'Link Copied!' : 'Copy Link'}
         </Button>
-
-        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-2xl">
-          <p className="text-xs text-blue-800 text-center font-mono break-all">
-            {getTeacherLink()}
-          </p>
-        </div>
 
         <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-2xl text-center">
           <p className="text-sm text-yellow-800">
-            ⏳ Waiting for you to set location from your phone...
+            ⏳ Waiting for you to scan with your phone...
           </p>
           <p className="text-xs text-yellow-600 mt-1">
             This screen will automatically update.
@@ -172,7 +192,7 @@ export default function QRDisplay({ sessionId, onEnd }: Props) {
           className="mt-4 text-xs text-gray-400"
           onClick={() => setLocationSet(true)}
         >
-          Skip (Testing only - students won't have distance check)
+          Skip (Testing only)
         </Button>
 
         {/* End Session */}
@@ -196,10 +216,10 @@ export default function QRDisplay({ sessionId, onEnd }: Props) {
         ✅ Classroom location set!
       </div>
 
-      {/* QR Code */}
-      {qr && (
+      {/* QR Code for Students */}
+      {studentQr && (
         <div className="bg-white p-6 rounded-[2rem] shadow-2xl border-4 border-primary/5 hover:border-primary/20 transition-all duration-500">
-          <img src={`data:image/png;base64,${qr}`} alt="QR" className="w-64 h-64 select-none pointer-events-none" />
+          <img src={`data:image/png;base64,${studentQr}`} alt="Student QR" className="w-64 h-64 select-none pointer-events-none" />
         </div>
       )}
 

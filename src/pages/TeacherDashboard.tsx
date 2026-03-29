@@ -126,7 +126,7 @@ const TeacherDashboard = () => {
           </div>
         </div>
       </header>
-      <main className="container py-8 max-w-lg mx-auto">
+      <main className="container py-8 max-w-6xl mx-auto px-4">
         <div className="bg-white/10 backdrop-blur-xl p-6 rounded-3xl shadow-2xl border border-white/20">
           <QRDisplay sessionId={session.id} onEnd={() => handleEnd(session.id)} />
         </div>

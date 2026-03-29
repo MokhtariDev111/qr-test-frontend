@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { attendance } from '../services/api';
 import { Button } from './ui/button';
-import { RefreshCw, Users, XCircle, Timer, MapPin, X, Copy, Check, Smartphone } from 'lucide-react';
+import { RefreshCw, Users, XCircle, Timer, MapPin, Copy, Check, Smartphone } from 'lucide-react';
 import LocationMap from './LocationMap';
 import QRCode from 'qrcode';
 
@@ -18,7 +18,6 @@ export default function QRDisplay({ sessionId, onEnd }: Props) {
   const [qrText, setQrText] = useState('');
   const [count, setCount] = useState(0);
   const [time, setTime] = useState(60);
-  const [showMap, setShowMap] = useState(false);
   const [locations, setLocations] = useState<any[]>([]);
   const [copied, setCopied] = useState(false);
   const [locationSet, setLocationSet] = useState(false);
@@ -45,20 +44,19 @@ export default function QRDisplay({ sessionId, onEnd }: Props) {
   };
 
   const generateTeacherQR = async () => {
-  try {
-    const link = `${window.location.origin}/set-location?session=${sessionId}`;
-    console.log('Teacher QR Link:', link); // Debug
-    const qrDataUrl = await QRCode.toDataURL(link, {
-      width: 300,
-      margin: 2,
-      errorCorrectionLevel: 'M',
-      color: { dark: '#1e40af', light: '#ffffff' }
-    });
-    setTeacherQr(qrDataUrl);
-  } catch (err) {
-    console.error('QR generation failed', err);
-  }
-};
+    try {
+      const link = `${window.location.origin}/set-location?session=${sessionId}`;
+      const qrDataUrl = await QRCode.toDataURL(link, {
+        width: 300,
+        margin: 2,
+        errorCorrectionLevel: 'M',
+        color: { dark: '#1e40af', light: '#ffffff' }
+      });
+      setTeacherQr(qrDataUrl);
+    } catch (err) {
+      console.error('QR generation failed', err);
+    }
+  };
 
   const loadQR = async () => {
     try {
@@ -125,9 +123,7 @@ export default function QRDisplay({ sessionId, onEnd }: Props) {
     const i = setInterval(() => {
       loadRecords();
       checkLocationStatus();
-      if (locationSet) {
-        loadLocations();
-      }
+      loadLocations();
     }, 3000);
 
     return () => {
@@ -167,22 +163,22 @@ export default function QRDisplay({ sessionId, onEnd }: Props) {
           </div>
         </div>
 
-        <p className="mt-4 text-sm text-muted-foreground">Or copy the link:</p>
+        <p className="mt-4 text-sm text-white/70">Or copy the link:</p>
         <Button
           variant="outline"
-          className="mt-2 w-full h-10 rounded-2xl border-blue-300 text-blue-600 hover:bg-blue-50 gap-2"
+          className="mt-2 w-full h-10 rounded-2xl border-white/30 text-white hover:bg-white/10 gap-2"
           onClick={() => copyLink(getTeacherLink())}
         >
           {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
           {copied ? 'Link Copied!' : 'Copy Link'}
         </Button>
 
-        <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-2xl text-center">
-          <p className="text-sm text-yellow-800">⏳ Waiting for you to scan with your phone...</p>
-          <p className="text-xs text-yellow-600 mt-1">This screen will automatically update.</p>
+        <div className="mt-6 p-4 bg-yellow-500/20 border border-yellow-500/30 rounded-2xl text-center">
+          <p className="text-sm text-yellow-200">⏳ Waiting for you to scan with your phone...</p>
+          <p className="text-xs text-yellow-200/70 mt-1">This screen will automatically update.</p>
         </div>
 
-        <Button variant="ghost" className="mt-4 text-xs text-gray-400" onClick={() => setLocationSet(true)}>
+        <Button variant="ghost" className="mt-4 text-xs text-white/40" onClick={() => setLocationSet(true)}>
           Skip (Testing only)
         </Button>
 
@@ -193,85 +189,86 @@ export default function QRDisplay({ sessionId, onEnd }: Props) {
     );
   }
 
-  // STAGE 2: Location set - Show student QR
+  // STAGE 2: Location set - Show student QR + Map side by side
   return (
-    <div className="flex flex-col items-center">
-      <div className="mb-4 px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
+    <div className="flex flex-col">
+      {/* Success badge */}
+      <div className="mb-4 px-4 py-2 bg-green-500/20 text-green-300 rounded-full text-sm font-semibold text-center mx-auto">
         ✅ Classroom location set!
       </div>
 
-      {studentQr && (
-        <div className="bg-white p-6 rounded-[2rem] shadow-2xl border-4 border-primary/5 hover:border-primary/20 transition-all duration-500">
-          <img src={`data:image/png;base64,${studentQr}`} alt="Student QR" className="w-64 h-64 select-none pointer-events-none" />
-        </div>
-      )}
-
-      {qrText && (
-        <Button
-          variant="outline"
-          className="mt-4 w-full h-12 rounded-2xl border-primary/30 text-primary hover:bg-primary/5 gap-2"
-          onClick={() => copyLink(getShareLink())}
-        >
-          {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-          {copied ? 'Link Copied!' : 'Copy Student Link'}
-        </Button>
-      )}
-
-      <div className="mt-4 flex items-center gap-2 px-4 py-2 bg-muted/50 rounded-full border border-border/50">
-        <Timer className={`h-4 w-4 ${time <= 5 ? 'text-destructive animate-pulse' : 'text-muted-foreground'}`} />
-        <span className={`text-sm font-bold font-mono ${time <= 5 ? 'text-destructive' : 'text-foreground'}`}>
-          REGENERATING IN {time}s
-        </span>
-      </div>
-
-      <div className="mt-8 grid grid-cols-2 gap-4 w-full">
-        <div className="glass-card p-4 rounded-2xl flex flex-col items-center justify-center border-l-4 border-success">
-          <Users className="h-5 w-5 text-success mb-1" />
-          <span className="text-2xl font-black text-foreground">{count}</span>
-          <span className="text-[10px] font-bold text-muted-foreground uppercase">Present</span>
-        </div>
-        <div className="glass-card p-4 rounded-2xl flex flex-col items-center justify-center border-l-4 border-primary">
-          <RefreshCw className="h-5 w-5 text-primary mb-1" />
-          <Button variant="ghost" size="sm" onClick={loadQR} className="h-auto p-0 font-bold text-[10px] uppercase">
-            Force Refresh
-          </Button>
-        </div>
-      </div>
-
-      <Button
-        variant="outline"
-        className="mt-4 w-full h-12 rounded-2xl border-primary/30 text-primary hover:bg-primary/5 gap-2"
-        onClick={() => { loadLocations(); setShowMap(v => !v); }}
-      >
-        <MapPin className="h-4 w-4" />
-        {showMap ? 'Hide' : 'Show'} Live Location Map
-        {locations.length > 0 && (
-          <span className="ml-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-full px-2 py-0.5">
-            {locations.length}
-          </span>
-        )}
-      </Button>
-
-      {showMap && (
-        <div className="mt-4 w-full rounded-2xl overflow-hidden border border-primary/20 shadow-xl">
-          <div className="flex items-center justify-between px-4 py-2 bg-primary/5 border-b border-primary/10">
-            <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-primary" />
-              <span className="text-xs font-bold text-primary uppercase tracking-wider">Live GPS Map</span>
+      {/* QR + Map side by side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left: QR Code */}
+        <div className="flex flex-col items-center">
+          {studentQr && (
+            <div className="bg-white p-4 rounded-2xl shadow-xl">
+              <img src={`data:image/png;base64,${studentQr}`} alt="Student QR" className="w-56 h-56 select-none pointer-events-none" />
             </div>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowMap(false)}>
-              <X className="h-3 w-3" />
-            </Button>
-          </div>
-          <LocationMap teacherLat={teacherLat} teacherLng={teacherLng} students={locations} />
-        </div>
-      )}
+          )}
 
+          {/* Timer */}
+          <div className="mt-4 flex items-center gap-2 px-4 py-2 bg-white/10 rounded-full">
+            <Timer className={`h-4 w-4 ${time <= 5 ? 'text-red-400 animate-pulse' : 'text-white/70'}`} />
+            <span className={`text-sm font-bold font-mono ${time <= 5 ? 'text-red-400' : 'text-white'}`}>
+              {time}s
+            </span>
+          </div>
+
+          {/* Copy Link */}
+          {qrText && (
+            <Button
+              variant="outline"
+              className="mt-4 w-full h-10 rounded-xl border-white/30 text-white hover:bg-white/10 gap-2"
+              onClick={() => copyLink(getShareLink())}
+            >
+              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              {copied ? 'Copied!' : 'Copy Student Link'}
+            </Button>
+          )}
+
+          {/* Stats */}
+          <div className="mt-4 grid grid-cols-2 gap-3 w-full">
+            <div className="bg-white/10 p-3 rounded-xl flex items-center gap-3">
+              <Users className="h-5 w-5 text-green-400" />
+              <div>
+                <span className="text-2xl font-bold text-white">{count}</span>
+                <p className="text-[10px] text-white/60 uppercase">Present</p>
+              </div>
+            </div>
+            <div className="bg-white/10 p-3 rounded-xl flex items-center justify-center">
+              <Button variant="ghost" size="sm" onClick={loadQR} className="text-white/80 hover:text-white hover:bg-white/10">
+                <RefreshCw className="h-4 w-4 mr-1" /> Refresh
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Map */}
+        <div className="flex flex-col">
+          <div className="flex items-center gap-2 mb-2">
+            <MapPin className="h-4 w-4 text-blue-400" />
+            <span className="text-sm font-semibold text-white">Live Location Map</span>
+            <span className="ml-auto text-xs text-white/60">
+              🎓 Teacher • 👤 Students ({locations.length})
+            </span>
+          </div>
+          <div className="flex-1 min-h-[300px] rounded-2xl overflow-hidden border border-white/20">
+            <LocationMap
+              teacherLat={teacherLat}
+              teacherLng={teacherLng}
+              students={locations}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* End Session Button */}
       <Button
         variant="destructive"
         size="lg"
         onClick={end}
-        className="mt-8 w-full h-14 rounded-2xl shadow-xl font-bold"
+        className="mt-6 w-full h-12 rounded-2xl shadow-xl font-bold"
       >
         <XCircle className="h-5 w-5 mr-2" /> Stop Recording
       </Button>

@@ -1,44 +1,24 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { LayoutDashboard, Plus, BookOpen, Trash2, RotateCcw, FileText, X, Clock, Satellite, Wifi, AlertCircle, Terminal, Copy, CheckCheck } from "lucide-react";
+import { LayoutDashboard, Plus, BookOpen, Trash2, RotateCcw, FileText, X, MapPin, Users, Calendar } from "lucide-react";
 import SessionCard from "@/components/SessionCard";
-import SecurityIndicator from "@/components/SecurityIndicator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "../contexts/AuthContext";
 import { courses, attendance } from "../services/api";
 import QRDisplay from "../components/QRDisplay";
-import { getGpsLocation, checkGpsAvailability } from "../lib/geo";
-
-type GpsStatus = 'loading' | 'gps' | 'ip' | 'none';
-
-const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-
-const container = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.1 },
-  },
-};
 
 const TeacherDashboard = () => {
   const { user, logout } = useAuth();
   const [list, setList] = useState<any[]>([]);
   const [session, setSession] = useState<any>(null);
-  const [teacherPos, setTeacherPos] = useState<{ lat: number; lng: number } | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
-  const [gps, setGps] = useState<GpsStatus>('loading');
-  const [copied, setCopied] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [form, setForm] = useState({
-    code: '',
-    name: '',
-  });
+  const [form, setForm] = useState({ code: '', name: '' });
   const [error, setError] = useState('');
 
-  useEffect(() => { load(); loadHistory(); checkGps(); }, []);
+  useEffect(() => { load(); loadHistory(); }, []);
 
   const load = async () => {
     try {
@@ -54,38 +34,29 @@ const TeacherDashboard = () => {
     } catch {}
   };
 
-  const checkGps = async () => {
-    setGps('loading');
-    const status = await checkGpsAvailability();
-    setGps(status);
-  };
-
   const handleStart = async (id: number) => {
-  try {
-    // Create session WITHOUT location - teacher will set it via phone
-    const res = await attendance.createSession({
-      course_id: id,
-      latitude: null,
-      longitude: null,
-    });
-    setSession(res.data);
-    setTeacherPos(null); // No location yet
-  } catch (err: any) {
-    alert('Failed to start session: ' + (err.response?.data?.detail || err.message));
-  }
-};
+    try {
+      const res = await attendance.createSession({
+        course_id: id,
+        latitude: null,
+        longitude: null,
+      });
+      setSession(res.data);
+    } catch (err: any) {
+      alert('Failed to start session: ' + (err.response?.data?.detail || err.message));
+    }
+  };
 
   const handleEnd = async (sessionId: number) => {
     try {
       await attendance.endSession(sessionId);
       loadHistory();
       setSession(null);
-      setTeacherPos(null);
     } catch {}
   };
 
   const handleReset = async (id: number) => {
-    if (!confirm('🗑️ Delete all attendance for this session? This will let students scan again.')) return;
+    if (!confirm('🗑️ Delete all attendance for this session?')) return;
     try {
       await attendance.clearAttendance(id);
       loadHistory();
@@ -94,7 +65,7 @@ const TeacherDashboard = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to completely delete this session?')) return;
+    if (!confirm('Delete this session permanently?')) return;
     try {
       await attendance.deleteSession(id);
       loadHistory();
@@ -102,7 +73,7 @@ const TeacherDashboard = () => {
   };
 
   const handleDeleteCourse = async (id: number) => {
-    if (!confirm('Delete this course permanently? This will erase all its sessions and attendance!')) return;
+    if (!confirm('Delete this course permanently?')) return;
     try {
       await courses.delete(id);
       load();
@@ -136,159 +107,162 @@ const TeacherDashboard = () => {
     }
   };
 
+  // Active Session View
   if (session) return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-40 border-b border-border/50 bg-background/80 backdrop-blur-lg">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-black/20 backdrop-blur-xl">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-bold">Live Session Hub</h2>
-            <span className="px-2 py-0.5 bg-success/10 text-success text-[10px] font-bold rounded-full animate-pulse">RECORDING</span>
+            <div className="h-3 w-3 rounded-full bg-green-500 animate-pulse" />
+            <h2 className="text-lg font-bold text-white">Live Session</h2>
           </div>
           <div className="flex gap-2">
-            <Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10" onClick={() => { handleDelete(session.id); setSession(null); }}>
-              <Trash2 className="h-4 w-4 mr-1" /> Kill
+            <Button size="sm" variant="ghost" className="text-red-400 hover:bg-red-500/20" onClick={() => { handleDelete(session.id); setSession(null); }}>
+              <Trash2 className="h-4 w-4 mr-1" /> Delete
             </Button>
-            <Button size="sm" variant="outline" className="rounded-xl" onClick={() => handleEnd(session.id)}>
-              Close
+            <Button size="sm" variant="outline" className="rounded-xl border-white/20 text-white hover:bg-white/10" onClick={() => handleEnd(session.id)}>
+              End Session
             </Button>
           </div>
         </div>
       </header>
       <main className="container py-8 max-w-lg mx-auto">
-        <div className="glass-card p-4 rounded-3xl shadow-2xl overflow-hidden border-2 border-primary/20">
-          <QRDisplay
-            sessionId={session.id}
-            teacherLat={teacherPos?.lat}
-            teacherLng={teacherPos?.lng}
-            onEnd={() => handleEnd(session.id)}
-          />
+        <div className="bg-white/10 backdrop-blur-xl p-6 rounded-3xl shadow-2xl border border-white/20">
+          <QRDisplay sessionId={session.id} onEnd={() => handleEnd(session.id)} />
         </div>
-        <div className="mt-8 space-y-3">
-          <div className="flex items-center gap-2 p-4 bg-primary/5 rounded-2xl border border-primary/10">
-            <RotateCcw className="h-5 w-5 text-primary" />
-            <p className="text-sm font-medium flex-1">Reset all attendance for this session?</p>
-            <Button size="sm" onClick={() => handleReset(session.id)} className="rounded-xl">Reset Now</Button>
-          </div>
+        <div className="mt-6">
+          <Button 
+            variant="outline" 
+            className="w-full h-12 rounded-2xl border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/20"
+            onClick={() => handleReset(session.id)}
+          >
+            <RotateCcw className="h-4 w-4 mr-2" /> Reset Attendance
+          </Button>
         </div>
       </main>
     </div>
   );
 
+  // Dashboard View
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-40 border-b border-border/50 bg-background/80 backdrop-blur-lg">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      {/* Header */}
+      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/80 backdrop-blur-xl">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary">
-              <LayoutDashboard className="h-5 w-5 text-primary-foreground" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-purple-600 shadow-lg">
+              <LayoutDashboard className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-foreground truncate max-w-[150px]">{user?.full_name}</h1>
-              <p className="text-xs text-muted-foreground">Management Hub</p>
+              <h1 className="text-lg font-bold text-slate-800">{user?.full_name}</h1>
+              <p className="text-xs text-slate-500">Teacher Dashboard</p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={logout} className="text-muted-foreground">
+          <Button variant="ghost" size="sm" onClick={logout} className="text-slate-500 hover:text-slate-800">
             Log out
           </Button>
         </div>
       </header>
 
-      <main className="container py-6 space-y-6">
-        {/* Stats Row */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="grid grid-cols-2 gap-3"
-        >
-          <div className="glass-card p-5 text-center rounded-2xl">
-            <p className="text-3xl font-black text-primary">{history.length}</p>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Total Sessions</p>
-          </div>
-          <div className="glass-card p-5 text-center rounded-2xl">
-            <p className="text-3xl font-black text-success">{list.length}</p>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Active Courses</p>
-          </div>
-        </motion.div>
-
-        {/* Security Status + Tunnel Helper */}
-        <div className="space-y-3">
-          <h2 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest pl-1">Server Heartbeat</h2>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <SecurityIndicator
-              type="gps"
-              active={gps === 'gps' || gps === 'ip'}
-              label={gps === 'gps' ? 'GPS Precise' : gps === 'ip' ? 'IP Location' : gps === 'loading' ? 'Locating…' : 'GPS Blocked'}
-            />
-            <SecurityIndicator type="device" active={true} label="Device Lock Enabled" />
-          </div>
-
-          {/* Pinggy Tunnel Panel */}
-          <div className="glass-card rounded-2xl overflow-hidden border border-border/50">
-            <div className="flex items-center gap-2 px-4 py-3 bg-muted/30 border-b border-border/50">
-              <Terminal className="h-4 w-4 text-primary" />
-              <span className="text-xs font-bold text-foreground">HTTPS Tunnel (required for phone GPS)</span>
-            </div>
-            <div className="px-4 py-3 space-y-2">
-              <p className="text-[11px] text-muted-foreground">
-                Run this command in a <b>new terminal</b>, then give students the printed <code className="bg-muted px-1 rounded">https://</code> link:
-              </p>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 bg-black/40 text-green-400 text-[11px] font-mono px-3 py-2 rounded-xl overflow-x-auto whitespace-nowrap">
-                  ssh -p 443 -R0:localhost:5173 a.pinggy.io
-                </code>
-                <Button
-                  size="icon"
-                  variant="outline"
-                  className="h-9 w-9 rounded-xl shrink-0"
-                  onClick={() => {
-                    navigator.clipboard.writeText('ssh -p 443 -R0:localhost:5173 a.pinggy.io');
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 2000);
-                  }}
-                >
-                  {copied ? <CheckCheck className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
-                </Button>
+      <main className="container py-8 space-y-8">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-xl">
+                <BookOpen className="h-5 w-5 text-blue-600" />
               </div>
-              {gps !== 'gps' && (
-                <p className="text-[10px] text-warning flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  GPS on your PC is {gps === 'ip' ? 'using IP fallback' : 'unavailable'}. Run the tunnel above so phones can get precise GPS.
-                </p>
-              )}
-              {gps === 'gps' && (
-                <p className="text-[10px] text-success flex items-center gap-1">
-                  <Satellite className="h-3 w-3" /> GPS active on this device.
-                </p>
-              )}
+              <div>
+                <p className="text-2xl font-bold text-slate-800">{list.length}</p>
+                <p className="text-xs text-slate-500">Courses</p>
+              </div>
             </div>
-          </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-100 rounded-xl">
+                <Calendar className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-slate-800">{history.length}</p>
+                <p className="text-xs text-slate-500">Sessions</p>
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-100 rounded-xl">
+                <Users className="h-5 w-5 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-slate-800">
+                  {history.reduce((acc, s) => acc + (s.present_count || 0), 0)}
+                </p>
+                <p className="text-xs text-slate-500">Total Scans</p>
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-orange-100 rounded-xl">
+                <MapPin className="h-5 w-5 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-slate-800">15m</p>
+                <p className="text-xs text-slate-500">GPS Range</p>
+              </div>
+            </div>
+          </motion.div>
         </div>
 
-        {/* Courses Grid */}
+        {/* Courses Section */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between px-1">
-            <h2 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">My Classroom</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-slate-800">My Courses</h2>
             <Button
-              variant="outline"
-              size="sm"
               onClick={() => setShowAdd(true)}
-              className="rounded-full h-8 px-4 text-[10px] font-bold border-primary text-primary hover:bg-primary/5"
+              className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg"
             >
-              <Plus className="h-3 w-3 mr-1" /> NEW COURSE
+              <Plus className="h-4 w-4 mr-2" /> Add Course
             </Button>
           </div>
 
+          {/* Add/Edit Course Form */}
           <AnimatePresence>
             {showAdd && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="glass-card p-6 rounded-3xl border-2 border-primary/20 bg-primary/5"
+                className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200"
               >
                 <div className="flex justify-between mb-4">
-                  <h3 className="font-bold">{editingId ? 'Edit Course' : 'Add New Course'}</h3>
-                  <Button variant="ghost" size="sm" onClick={() => { setShowAdd(false); setEditingId(null); setForm({code:'', name:''}); }}><X className="h-4 w-4" /></Button>
+                  <h3 className="font-bold text-slate-800">{editingId ? 'Edit Course' : 'New Course'}</h3>
+                  <Button variant="ghost" size="sm" onClick={() => { setShowAdd(false); setEditingId(null); setForm({code:'', name:''}); }}>
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
                 <form onSubmit={handleAddCourse} className="space-y-3">
                   <Input
@@ -305,19 +279,20 @@ const TeacherDashboard = () => {
                     required
                     className="rounded-xl h-12"
                   />
-
-                  {error && <p className="text-xs text-destructive">{error}</p>}
-                  <Button type="submit" className="w-full h-12 rounded-xl">{editingId ? 'Save Changes' : 'Create Course'}</Button>
+                  {error && <p className="text-xs text-red-500">{error}</p>}
+                  <Button type="submit" className="w-full h-12 rounded-xl">{editingId ? 'Save' : 'Create'}</Button>
                 </form>
               </motion.div>
             )}
           </AnimatePresence>
 
-          <motion.div variants={container} initial="hidden" animate="show" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Course Grid */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {list.length === 0 ? (
-              <div className="col-span-full py-12 text-center text-muted-foreground opacity-30 select-none border-2 border-dashed rounded-3xl">
-                <BookOpen className="h-10 w-10 mx-auto mb-2" />
-                <p className="text-xs font-semibold uppercase tracking-widest">No courses tracked yet</p>
+              <div className="col-span-full py-16 text-center border-2 border-dashed border-slate-200 rounded-2xl">
+                <BookOpen className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+                <p className="text-slate-500 font-medium">No courses yet</p>
+                <p className="text-slate-400 text-sm">Create your first course to get started</p>
               </div>
             ) : list.map((c) => (
               <SessionCard
@@ -325,53 +300,62 @@ const TeacherDashboard = () => {
                 id={c.id}
                 title={c.name}
                 course={c.code}
-                time="Regular Session"
+                time="Ready"
                 students={0}
                 totalStudents={0}
                 isActive={false}
-                gpsEnabled={gps === 'gps' || gps === 'ip'}
+                gpsEnabled={true}
                 onStart={() => handleStart(c.id)}
                 onEnd={() => {}}
                 onEdit={() => handleEditCourse(c)}
                 onDelete={() => handleDeleteCourse(c.id)}
               />
             ))}
-          </motion.div>
+          </div>
         </div>
 
-        {/* Audit Trail */}
+        {/* History Section */}
         <div className="space-y-4 pb-10">
-          <h2 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-1">Audit Trail</h2>
-          <div className="space-y-2">
+          <h2 className="text-lg font-bold text-slate-800">Session History</h2>
+          <div className="space-y-3">
             {history.length === 0 ? (
-              <div className="text-center py-10 opacity-20">
-                <p className="text-xs italic font-semibold">Empty Log</p>
+              <div className="text-center py-12 bg-white rounded-2xl border border-slate-100">
+                <Calendar className="h-10 w-10 mx-auto mb-2 text-slate-300" />
+                <p className="text-slate-400 text-sm">No sessions recorded yet</p>
               </div>
             ) : history.map(s => (
-              <div key={s.id} className="glass-card flex items-center justify-between p-4 rounded-2xl group hover:border-primary/30 transition-all">
+              <motion.div 
+                key={s.id} 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="bg-white flex items-center justify-between p-4 rounded-2xl shadow-sm border border-slate-100 hover:border-blue-200 transition-all"
+              >
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold truncate tracking-tight">{s.course_name}</p>
-                  <p className="text-[10px] text-muted-foreground font-semibold uppercase">
+                  <p className="font-semibold text-slate-800 truncate">{s.course_name}</p>
+                  <p className="text-xs text-slate-500">
                     {new Date(s.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                    {s.present_count !== undefined && (
+                      <span className="ml-2 text-green-600">• {s.present_count} present</span>
+                    )}
                   </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-1">
                   <Button
                     size="icon"
                     variant="ghost"
                     onClick={() => window.open(`/api/attendance/sessions/${s.id}/report?token=${localStorage.getItem('token')}`, '_blank')}
-                    className="h-9 w-9 rounded-xl text-success hover:bg-success/10"
+                    className="h-9 w-9 rounded-xl text-blue-600 hover:bg-blue-50"
                   >
                     <FileText className="h-4 w-4" />
                   </Button>
-                  <Button size="icon" variant="ghost" onClick={() => handleReset(s.id)} className="h-9 w-9 rounded-xl text-warning hover:bg-warning/10">
+                  <Button size="icon" variant="ghost" onClick={() => handleReset(s.id)} className="h-9 w-9 rounded-xl text-orange-500 hover:bg-orange-50">
                     <RotateCcw className="h-4 w-4" />
                   </Button>
-                  <Button size="icon" variant="ghost" onClick={() => handleDelete(s.id)} className="h-9 w-9 rounded-xl text-destructive hover:bg-destructive/10">
+                  <Button size="icon" variant="ghost" onClick={() => handleDelete(s.id)} className="h-9 w-9 rounded-xl text-red-500 hover:bg-red-50">
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>

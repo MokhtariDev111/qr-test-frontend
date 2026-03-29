@@ -81,7 +81,7 @@ export default function Register() {
             className="rounded-xl h-11"
           />
           
-          <Select onValueChange={(v) => setForm({ ...form, role: v })}>
+          <Select defaultValue="student" onValueChange={(v) => setForm({ ...form, role: v })}>
              <SelectTrigger className="h-11 rounded-xl">
                <SelectValue placeholder="Social Role" />
              </SelectTrigger>

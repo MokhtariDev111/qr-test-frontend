@@ -149,41 +149,41 @@ export default function QRDisplay({ sessionId, onEnd }: Props) {
   // STAGE 1: Teacher needs to scan QR to set location
   if (!locationSet) {
     return (
-      <div className="flex flex-col items-center">
+      <div className="flex flex-col items-center py-8">
         <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-1 rounded-[2rem] shadow-2xl">
           <div className="bg-white p-8 rounded-[1.8rem]">
-            <div className="text-center mb-4">
-              <Smartphone className="h-12 w-12 mx-auto text-blue-500 mb-2" />
-              <h3 className="text-xl font-bold text-gray-800">Step 1: Set Classroom Location</h3>
-              <p className="text-sm text-gray-500">Scan this QR with your phone</p>
+            <div className="text-center mb-6">
+              <Smartphone className="h-14 w-14 mx-auto text-blue-500 mb-3" />
+              <h3 className="text-2xl font-bold text-gray-800">Step 1: Set Classroom Location</h3>
+              <p className="text-base text-gray-500 mt-1">Scan this QR with your phone</p>
             </div>
             {teacherQr && (
-              <img src={teacherQr} alt="Teacher QR" className="w-80 h-80 mx-auto" />
+              <img src={teacherQr} alt="Teacher QR" className="w-[350px] h-[350px] mx-auto" />
             )}
           </div>
         </div>
 
-        <p className="mt-4 text-sm text-white/70">Or copy the link:</p>
+        <p className="mt-6 text-base text-white/70">Or copy the link:</p>
         <Button
           variant="outline"
-          className="mt-2 w-full max-w-sm h-12 rounded-2xl border-white/30 text-white hover:bg-white/10 gap-2"
+          className="mt-3 w-80 h-14 rounded-2xl border-white/30 text-white hover:bg-white/10 gap-2 text-lg"
           onClick={() => copyLink(getTeacherLink())}
         >
-          {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+          {copied ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
           {copied ? 'Link Copied!' : 'Copy Link'}
         </Button>
 
-        <div className="mt-6 p-4 bg-yellow-500/20 border border-yellow-500/30 rounded-2xl text-center max-w-sm">
-          <p className="text-sm text-yellow-200">⏳ Waiting for you to scan with your phone...</p>
-          <p className="text-xs text-yellow-200/70 mt-1">This screen will automatically update.</p>
+        <div className="mt-8 p-5 bg-yellow-500/20 border border-yellow-500/30 rounded-2xl text-center w-80">
+          <p className="text-base text-yellow-200">⏳ Waiting for you to scan...</p>
+          <p className="text-sm text-yellow-200/70 mt-2">This screen will automatically update.</p>
         </div>
 
-        <Button variant="ghost" className="mt-4 text-xs text-white/40" onClick={() => setLocationSet(true)}>
+        <Button variant="ghost" className="mt-6 text-sm text-white/40" onClick={() => setLocationSet(true)}>
           Skip (Testing only)
         </Button>
 
-        <Button variant="destructive" size="lg" onClick={end} className="mt-8 w-full max-w-sm h-14 rounded-2xl shadow-xl font-bold">
-          <XCircle className="h-5 w-5 mr-2" /> Cancel Session
+        <Button variant="destructive" size="lg" onClick={end} className="mt-10 w-80 h-16 rounded-2xl shadow-xl font-bold text-lg">
+          <XCircle className="h-6 w-6 mr-2" /> Cancel Session
         </Button>
       </div>
     );
@@ -191,26 +191,30 @@ export default function QRDisplay({ sessionId, onEnd }: Props) {
 
   // STAGE 2: Location set - Show student QR + Map side by side
   return (
-    <div className="flex flex-col">
+    <div className="p-4">
       {/* Success badge */}
-      <div className="mb-6 px-6 py-3 bg-green-500/20 text-green-300 rounded-full text-base font-semibold text-center mx-auto">
+      <div className="mb-8 px-8 py-4 bg-green-500/20 text-green-300 rounded-full text-lg font-semibold text-center mx-auto w-fit">
         ✅ Classroom location set!
       </div>
 
       {/* QR + Map side by side */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-        {/* Left: QR Code */}
-        <div className="flex flex-col items-center">
+      <div className="flex flex-col lg:flex-row gap-8 items-stretch">
+        {/* Left: QR Code Section */}
+        <div className="flex flex-col items-center lg:w-1/2">
           {studentQr && (
-            <div className="bg-white p-6 rounded-3xl shadow-2xl">
-              <img src={`data:image/png;base64,${studentQr}`} alt="Student QR" className="w-72 h-72 md:w-80 md:h-80 select-none pointer-events-none" />
+            <div className="bg-white p-8 rounded-3xl shadow-2xl">
+              <img 
+                src={`data:image/png;base64,${studentQr}`} 
+                alt="Student QR" 
+                className="w-[300px] h-[300px] lg:w-[350px] lg:h-[350px] select-none pointer-events-none" 
+              />
             </div>
           )}
 
           {/* Timer */}
-          <div className="mt-6 flex items-center gap-3 px-6 py-3 bg-white/10 rounded-full">
-            <Timer className={`h-5 w-5 ${time <= 5 ? 'text-red-400 animate-pulse' : 'text-white/70'}`} />
-            <span className={`text-lg font-bold font-mono ${time <= 5 ? 'text-red-400' : 'text-white'}`}>
+          <div className="mt-6 flex items-center gap-3 px-8 py-4 bg-white/10 rounded-full">
+            <Timer className={`h-6 w-6 ${time <= 5 ? 'text-red-400 animate-pulse' : 'text-white/70'}`} />
+            <span className={`text-xl font-bold font-mono ${time <= 5 ? 'text-red-400' : 'text-white'}`}>
               Refresh in {time}s
             </span>
           </div>
@@ -219,7 +223,7 @@ export default function QRDisplay({ sessionId, onEnd }: Props) {
           {qrText && (
             <Button
               variant="outline"
-              className="mt-4 w-full max-w-xs h-12 rounded-xl border-white/30 text-white hover:bg-white/10 gap-2 text-base"
+              className="mt-5 w-72 h-14 rounded-xl border-white/30 text-white hover:bg-white/10 gap-2 text-lg"
               onClick={() => copyLink(getShareLink())}
             >
               {copied ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
@@ -228,32 +232,32 @@ export default function QRDisplay({ sessionId, onEnd }: Props) {
           )}
 
           {/* Stats */}
-          <div className="mt-6 grid grid-cols-2 gap-4 w-full max-w-xs">
-            <div className="bg-white/10 p-4 rounded-2xl flex items-center gap-3">
-              <Users className="h-6 w-6 text-green-400" />
+          <div className="mt-6 flex gap-4">
+            <div className="bg-white/10 px-8 py-5 rounded-2xl flex items-center gap-4">
+              <Users className="h-8 w-8 text-green-400" />
               <div>
-                <span className="text-3xl font-bold text-white">{count}</span>
-                <p className="text-xs text-white/60 uppercase">Present</p>
+                <span className="text-4xl font-bold text-white">{count}</span>
+                <p className="text-sm text-white/60 uppercase">Present</p>
               </div>
             </div>
-            <div className="bg-white/10 p-4 rounded-2xl flex items-center justify-center">
-              <Button variant="ghost" size="sm" onClick={loadQR} className="text-white/80 hover:text-white hover:bg-white/10">
-                <RefreshCw className="h-5 w-5 mr-2" /> Refresh
+            <div className="bg-white/10 px-6 py-5 rounded-2xl flex items-center justify-center">
+              <Button variant="ghost" onClick={loadQR} className="text-white/80 hover:text-white hover:bg-white/10 text-lg">
+                <RefreshCw className="h-6 w-6 mr-2" /> Refresh
               </Button>
             </div>
           </div>
         </div>
 
-        {/* Right: Map */}
-        <div className="flex flex-col">
-          <div className="flex items-center gap-2 mb-3">
-            <MapPin className="h-5 w-5 text-blue-400" />
-            <span className="text-base font-semibold text-white">Live Location Map</span>
-            <span className="ml-auto text-sm text-white/60">
+        {/* Right: Map Section */}
+        <div className="flex flex-col lg:w-1/2">
+          <div className="flex items-center gap-3 mb-4">
+            <MapPin className="h-6 w-6 text-blue-400" />
+            <span className="text-lg font-semibold text-white">Live Location Map</span>
+            <span className="ml-auto text-base text-white/60">
               🎓 Teacher • 👤 Students ({locations.length})
             </span>
           </div>
-          <div className="flex-1 min-h-[400px] md:min-h-[450px] rounded-3xl overflow-hidden border-2 border-white/20 shadow-2xl">
+          <div className="flex-1 h-[400px] lg:h-[500px] rounded-3xl overflow-hidden border-2 border-white/20 shadow-2xl">
             <LocationMap
               teacherLat={teacherLat}
               teacherLng={teacherLng}
@@ -268,9 +272,9 @@ export default function QRDisplay({ sessionId, onEnd }: Props) {
         variant="destructive"
         size="lg"
         onClick={end}
-        className="mt-8 w-full max-w-md mx-auto h-14 rounded-2xl shadow-xl font-bold text-lg"
+        className="mt-10 w-full max-w-lg mx-auto h-16 rounded-2xl shadow-xl font-bold text-xl flex"
       >
-        <XCircle className="h-6 w-6 mr-2" /> Stop Recording
+        <XCircle className="h-7 w-7 mr-3" /> Stop Recording
       </Button>
     </div>
   );
